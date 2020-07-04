@@ -5,6 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 package org.example;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -14,7 +15,10 @@ import java.util.List;
 import org.hyperledger.fabric.gateway.*;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.User;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.exception.ProposalException;
+import org.hyperledger.fabric.sdk.exception.TransactionException;
 
 public class ClientApp{
 
@@ -28,7 +32,7 @@ public class ClientApp{
 		System.out.println(obj);
 	}
 
-	public void run() throws InterruptedException, IOException, InvalidArgumentException {
+	public void run() throws InterruptedException, IOException, InvalidArgumentException, NoSuchMethodException, TransactionException, InstantiationException, CryptoException, IllegalAccessException, InvocationTargetException, ClassNotFoundException, ProposalException {
 
 		Long time = System.currentTimeMillis();
 		out(System.currentTimeMillis()-time);
@@ -47,7 +51,7 @@ public class ClientApp{
 
 		Gateway.Builder builder = Gateway.createBuilder();
 
-		CreateChannel createChannel = new CreateChannel(builder);
+		CreateChannel createChannel = new CreateChannel(admin);
 		createChannel.createChannel();
 
 		try {
