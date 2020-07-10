@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.EnumSet;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.hyperledger.fabric.sdk.Channel.PeerOptions.createPeerOptions;
@@ -31,6 +32,26 @@ public class CreateChannel {
 
     public CreateChannel(User admin){
         this.user = admin;
+    }
+
+    public Channel getChannel(HFClient client) throws InvalidArgumentException, TransactionException {
+        // initialize channel
+        // peer name and endpoint in fabcar network
+        Properties peerProperties = getEndPointProperties("peer", "peer0.org2.example.com");
+        peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
+        Peer peer = client.newPeer("peer0.org2.example.com", "grpcs://localhost:22000", peerProperties);
+        // orderer name and endpoint in fabcar network
+        Properties ordererProperties = getEndPointProperties("orderer", "orderer.example.com");
+        ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[] {5L, TimeUnit.MINUTES});
+        ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[] {8L, TimeUnit.SECONDS});
+        ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls", new Object[] {true});
+        Orderer orderer = client.newOrderer("orderer.example.com", "grpcs://localhost:18000",ordererProperties);
+        // channel name in fabcar network
+        Channel channel = client.newChannel("foochannel");
+        channel.addPeer(peer);
+        channel.addOrderer(orderer);
+        channel.initialize();
+        return channel;
     }
 
     private String getDomainName(final String name) {
@@ -48,7 +69,7 @@ public class CreateChannel {
 
         final String domainName = getDomainName(name);
 
-        File cert = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/ordererOrganizations".replace("orderer", type), domainName, type + "s",
+        File cert = Paths.get("../../first-network", "crypto-config/ordererOrganizations".replace("orderer", type), domainName, type + "s",
                 name, "tls/server.crt").toFile();
         if (!cert.exists()) {
             throw new RuntimeException(String.format("Missing cert file for: %s. Could not find at location: %s", name,
@@ -58,12 +79,12 @@ public class CreateChannel {
         File clientCert;
         File clientKey;
         if ("orderer".equals(type)) {
-            clientCert = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.crt").toFile();
+            clientCert = Paths.get("../../first-network", "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.crt").toFile();
 
-            clientKey = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.key").toFile();
+            clientKey = Paths.get("../../first-network", "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.key").toFile();
         } else {
-            clientCert = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.crt").toFile();
-            clientKey = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.key").toFile();
+            clientCert = Paths.get("../../first-network", "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.crt").toFile();
+            clientKey = Paths.get("../../first-network", "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.key").toFile();
         }
 
         if (!clientCert.exists()) {
@@ -93,21 +114,27 @@ public class CreateChannel {
     public void createChannel() throws IOException, InvalidArgumentException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, CryptoException, TransactionException, ProposalException {
         HFClient hfClient = HFClient.createNewInstance();
         hfClient.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
-        hfClient.setUserContext(user);
+        hfClient.setUserContext(EnrollAdmin.admin);
         Properties ordererProperties = getEndPointProperties("orderer", "orderer2.example.com");
         ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[] {5L, TimeUnit.MINUTES});
         ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[] {8L, TimeUnit.SECONDS});
         ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls", new Object[] {true});
-        Orderer orderer = hfClient.newOrderer("orderer2.example.com","grpcs://localhost:18002",ordererProperties);
-        File configTxFile = Paths.get("/home/master/fabric-samples/first-network/","channel-artifacts","fooChannel.tx").toFile();
+        Orderer orderer = hfClient.newOrderer("orderer.example.com","grpcs://localhost:18000",ordererProperties);
+        File configTxFile = Paths.get("../../first-network","channel-artifacts","fooChannel.tx").toFile();
         ChannelConfiguration configuration = new ChannelConfiguration(configTxFile);
-        Channel newChannel = hfClient.newChannel("foochannel", orderer, configuration, hfClient.getChannelConfigurationSignature(configuration, user));
-        Properties peerProperties = getEndPointProperties("peer", "peer0.org2.example.com");
+        Channel newChannel = getChannel(hfClient);
+        if (newChannel == null){
+            System.out.println("null channel get");
+            return;
+        }
+//        Channel newChannel = hfClient.newChannel("foochannel", orderer, configuration, hfClient.getChannelConfigurationSignature(configuration, EnrollAdmin.admin));
+        Properties peerProperties = getEndPointProperties("peer", "peer1.org2.example.com");
         peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
-        Peer peer = hfClient.newPeer("peer0.org2.example.com", "grpcs://localhost:22000", peerProperties);
+        Peer peer = hfClient.newPeer("peer1.org2.example.com", "grpcs://localhost:22001", peerProperties);
+//        newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(EnumSet.of(Peer.PeerRole.ENDORSING_PEER, Peer.PeerRole.LEDGER_QUERY, Peer.PeerRole.CHAINCODE_QUERY, Peer.PeerRole.EVENT_SOURCE))); //Default is all roles.
+//        newChannel.addOrderer(orderer);
+//        newChannel.initialize();
+//        byte[] serializedChannelBytes = newChannel.serializeChannel();
         newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(EnumSet.of(Peer.PeerRole.ENDORSING_PEER, Peer.PeerRole.LEDGER_QUERY, Peer.PeerRole.CHAINCODE_QUERY, Peer.PeerRole.EVENT_SOURCE))); //Default is all roles.
-        newChannel.addOrderer(orderer);
-        newChannel.initialize();
-        byte[] serializedChannelBytes = newChannel.serializeChannel();
     }
 }
