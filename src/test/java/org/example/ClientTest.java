@@ -10,9 +10,10 @@ public class ClientTest {
 
 	@Test
 	public void testFabCar() throws Exception {
-		EnrollAdmin.main();
-		ClientApp clientApp = new ClientApp(RegisterUser.main());
-		clientApp.run();
+		String org = "org2";
+		EnrollAdmin.main(org);
+		ClientApp clientApp = new ClientApp(RegisterUser.main(org));
+		clientApp.run(org);
 
 	}
 }

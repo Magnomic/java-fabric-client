@@ -17,19 +17,20 @@ import org.hyperledger.fabric_ca.sdk.HFCAClient;
 
 public class EnrollAdmin {
 
-	public static void main() throws Exception {
+	public static void main(String org) throws Exception {
 
+		Integer orgIndex = Integer.parseInt(org.subSequence(org.length() -1, org.length()).toString());
 		// Create a CA client for interacting with the CA.
 		Properties props = new Properties();
 		props.put("pemFile",
-			"/resources/peerOrganizations/org1.example.com/ca/ca.org1.example.com-cert.pem");
+			"/resources/peerOrganizations/"+org+".example.com/ca/ca.org"+orgIndex.toString()+".example.com-cert.pem");
 		props.put("allowAllHostNames", "true");
-		HFCAClient caClient = HFCAClient.createNewInstance("https://localhost:19001", props);
+		HFCAClient caClient = HFCAClient.createNewInstance("https://localhost:1900"+ orgIndex, props);
 		CryptoSuite cryptoSuite = CryptoSuiteFactory.getDefault().getCryptoSuite();
 		caClient.setCryptoSuite(cryptoSuite);
 
 		// Create a wallet for managing identities
-		Wallet wallet = Wallet.createFileSystemWallet(Paths.get("wallet"));
+		Wallet wallet = Wallet.createFileSystemWallet(Paths.get("wallet-"+org));
 
 		// Check to see if we've already enrolled the admin user.
 		boolean adminExists = wallet.exists("admin");
@@ -43,7 +44,7 @@ public class EnrollAdmin {
         enrollmentRequestTLS.addHost("localhost");
         enrollmentRequestTLS.setProfile("tls");
         Enrollment enrollment = caClient.enroll("admin", "adminpw", enrollmentRequestTLS);
-        Identity user = Identity.createIdentity("Org1MSP", enrollment.getCert(), enrollment.getKey());
+        Identity user = Identity.createIdentity("Org"+orgIndex.toString()+"MSP", enrollment.getCert(), enrollment.getKey());
         wallet.put("admin", user);
 		System.out.println("Successfully enrolled user \"admin\" and imported it into the wallet");
 	}

@@ -48,7 +48,7 @@ public class CreateChannel {
 
         final String domainName = getDomainName(name);
 
-        File cert = Paths.get("/", "crypto-config/ordererOrganizations".replace("orderer", type), domainName, type + "s",
+        File cert = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/ordererOrganizations".replace("orderer", type), domainName, type + "s",
                 name, "tls/server.crt").toFile();
         if (!cert.exists()) {
             throw new RuntimeException(String.format("Missing cert file for: %s. Could not find at location: %s", name,
@@ -58,12 +58,12 @@ public class CreateChannel {
         File clientCert;
         File clientKey;
         if ("orderer".equals(type)) {
-            clientCert = Paths.get("/", "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.crt").toFile();
+            clientCert = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.crt").toFile();
 
-            clientKey = Paths.get("/", "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.key").toFile();
+            clientKey = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.key").toFile();
         } else {
-            clientCert = Paths.get("/", "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.crt").toFile();
-            clientKey = Paths.get("/", "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.key").toFile();
+            clientCert = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.crt").toFile();
+            clientKey = Paths.get("/home/master/fabric-samples/first-network/", "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.key").toFile();
         }
 
         if (!clientCert.exists()) {
@@ -92,13 +92,14 @@ public class CreateChannel {
 
     public void createChannel() throws IOException, InvalidArgumentException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, CryptoException, TransactionException, ProposalException {
         HFClient hfClient = HFClient.createNewInstance();
+        hfClient.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
         hfClient.setUserContext(user);
-        Properties ordererProperties = getEndPointProperties("orderer", "orderer.example.com");
+        Properties ordererProperties = getEndPointProperties("orderer", "orderer2.example.com");
         ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[] {5L, TimeUnit.MINUTES});
         ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[] {8L, TimeUnit.SECONDS});
         ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls", new Object[] {true});
-        Orderer orderer = hfClient.newOrderer("orderer.example.com","grpcs://localhost:18000",ordererProperties);
-        File configTxFile = Paths.get("channel-artifact","fooChannel.tx").toFile();
+        Orderer orderer = hfClient.newOrderer("orderer2.example.com","grpcs://localhost:18002",ordererProperties);
+        File configTxFile = Paths.get("/home/master/fabric-samples/first-network/","channel-artifacts","fooChannel.tx").toFile();
         ChannelConfiguration configuration = new ChannelConfiguration(configTxFile);
         Channel newChannel = hfClient.newChannel("foochannel", orderer, configuration, hfClient.getChannelConfigurationSignature(configuration, user));
         Properties peerProperties = getEndPointProperties("peer", "peer0.org2.example.com");

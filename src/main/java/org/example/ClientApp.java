@@ -32,12 +32,12 @@ public class ClientApp{
 		System.out.println(obj);
 	}
 
-	public void run() throws InterruptedException, IOException, InvalidArgumentException, NoSuchMethodException, TransactionException, InstantiationException, CryptoException, IllegalAccessException, InvocationTargetException, ClassNotFoundException, ProposalException {
+	public void run(String org) throws InterruptedException, IOException, InvalidArgumentException, NoSuchMethodException, TransactionException, InstantiationException, CryptoException, IllegalAccessException, InvocationTargetException, ClassNotFoundException, ProposalException {
 
 		Long time = System.currentTimeMillis();
 		out(System.currentTimeMillis()-time);
 			// Load a file system based wallet for managing identities.
-		Path walletPath = Paths.get("wallet");
+		Path walletPath = Paths.get("wallet-"+org);
 		Wallet wallet = null;
 		try {
 			wallet = Wallet.createFileSystemWallet(walletPath);
@@ -54,16 +54,16 @@ public class ClientApp{
 		CreateChannel createChannel = new CreateChannel(admin);
 		createChannel.createChannel();
 
-		try {
-			builder.identity(wallet, "user1").networkConfig(networkConfigPath).discovery(true);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		for (int i=0;i<100;i++) {
-			Thread.sleep(1);
-			CommitThread commitThread = new CommitThread(builder, Long.toString(System.currentTimeMillis()));
-			commitThread.start();
-		}
-		Thread.sleep(2000*1000L);
+//		try {
+//			builder.identity(wallet, "user1").networkConfig(networkConfigPath).discovery(true);
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//		for (int i=0;i<100;i++) {
+//			Thread.sleep(1);
+//			CommitThread commitThread = new CommitThread(builder, Long.toString(System.currentTimeMillis()));
+//			commitThread.start();
+//		}
+//		Thread.sleep(2000*1000L);
 	}
 }
