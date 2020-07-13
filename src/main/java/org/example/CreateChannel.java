@@ -22,8 +22,7 @@ import java.util.concurrent.TimeoutException;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.Channel.PeerOptions.createPeerOptions;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 /**
  * Created by Du on 2020/7/2.
@@ -74,12 +73,12 @@ public class CreateChannel {
         // channel name in fabcar network
         Channel channel = client.newChannel(channelName);
         channel.addOrderer(getOrderer(client, "orderer.example.com"));
-        for (int i=0;i<10;i++){
-            Properties peerProperties = getEndPointProperties("peer", "peer"+i+"."+orgName);
-            peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
-            Peer peer = client.newPeer("peer"+i+"."+orgName, getGRPCUrl("peer", "peer"+i+"."+orgName), peerProperties);
-            channel.addPeer(peer);
-        }
+//        for (int i=0;i<10;i++){
+//            Properties peerProperties = getEndPointProperties("peer", "peer"+i+"."+orgName);
+//            peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
+//            Peer peer = client.newPeer("peer"+i+"."+orgName, getGRPCUrl("peer", "peer"+i+"."+orgName), peerProperties);
+//            channel.addPeer(peer);
+//        }
         channel.initialize();
         byte[] serializedChannelBytes = channel.serializeChannel();
         return channel;
@@ -199,8 +198,14 @@ public class CreateChannel {
 
 
     public void chaincodeCreate(HFClient hfClient, Channel channel, String chaincodeName, String chaincodeVersion) throws IOException, InvalidArgumentException, ChaincodeEndorsementPolicyParseException, ProposalException, InterruptedException, ExecutionException, TimeoutException {
+        Collection<Peer> peers = channel.getPeers();
+
+//        verifyNoInstalledChaincodes(hfClient, peers);
+
+//        Thread.sleep(100000L);
+
         LifecycleChaincodePackage lifecycleChaincodePackage = LifecycleChaincodePackage.fromSource("foochaincode", Paths.get("../../chaincode/gocc/sample1"),
-                TransactionRequest.Type.GO_LANG,"github.com/example_cc", Paths.get("src/test/end2endit"));
+                TransactionRequest.Type.GO_LANG,"github.com/example_cc", null);
 
         assertEquals("foochaincode", lifecycleChaincodePackage.getLabel()); // what we expect ?
         assertEquals(TransactionRequest.Type.GO_LANG, lifecycleChaincodePackage.getType());
@@ -212,10 +217,9 @@ public class CreateChannel {
         LifecycleInstallChaincodeRequest installProposalRequest = hfClient.newLifecycleInstallChaincodeRequest();
         installProposalRequest.setLifecycleChaincodePackage(lifecycleChaincodePackage);
         installProposalRequest.setProposalWaitTime(120000L);
-        Collection<Peer> peers = channel.getPeers();
+
 
         Collection<LifecycleInstallChaincodeProposalResponse> responses = hfClient.sendLifecycleInstallChaincodeRequest(installProposalRequest, peers);
-
 
         Collection<ProposalResponse> successful = new LinkedList<>();
         Collection<ProposalResponse> failed = new LinkedList<>();
@@ -236,7 +240,9 @@ public class CreateChannel {
             }
         }
 
-//        out(packageID);
+        out(packageID);
+        assertTrue(packageID.contains("foochaincode"));
+        out(lifecycleChaincodePackage.getLabel());
 
         final QueryLifecycleQueryChaincodeDefinitionRequest queryLifecycleQueryChaincodeDefinitionRequest = hfClient.newQueryLifecycleQueryChaincodeDefinitionRequest();
         queryLifecycleQueryChaincodeDefinitionRequest.setChaincodeName(chaincodeName);
@@ -254,8 +260,10 @@ public class CreateChannel {
                 }
             }
         }
+        Peer anPeer = peers.iterator().next();
+        out(anPeer.getName());
         BlockEvent.TransactionEvent transactionEvent = lifecycleApproveChaincodeDefinitionForMyOrg(hfClient, channel,
-                    Collections.singleton(peers.iterator().next()),  //support approve on multiple peers but really today only need one. Go with minimum.
+                peers,  //support approve on multiple peers but really today only need one. Go with minimum.
                     sequence, chaincodeName, chaincodeVersion, chaincodeEndorsementPolicy, null, true, packageID)
                     .get(1, TimeUnit.SECONDS);
     }
@@ -291,32 +299,36 @@ public class CreateChannel {
         }
 //        Channel fooChannel = getChannel(hfClient, "foochannel", "org1.example.com");
         System.out.println(fooChannel.getPeers().size());
-        if (fooChannel.getPeers().size() < 10) {
-            for (int i = 0; i < 10; i++) {
-                try {
-                    peerJoinChannel(hfClient, fooChannel, "peer" + i + ".org1.example.com");
-                } catch (ProposalException e) {
-                    out("peer" + i + ".org1.example.com has joined channel");
-                }
+        for (int i = 0; i < 10; i++) {
+            try {
+                peerJoinChannel(hfClient, fooChannel, "peer" + i + ".org1.example.com");
+            } catch (ProposalException e) {
+                out("peer" + i + ".org1.example.com has joined channel");
+                Properties peerProperties = getEndPointProperties("peer", "peer"+i+"."+"org1.example.com");
+                peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
+                Peer peer = hfClient.newPeer("peer"+i+"."+"org1.example.com", getGRPCUrl("peer", "peer"+i+"."+"org1.example.com"), peerProperties);
+                fooChannel.addPeer(peer);
             }
         }
 //
 //        addAnchorPeer(fooChannel, admin, hfClient);
 
 
-        admin = EnrollAdmin.admins.get("Org2");
-        hfClient.setUserContext(admin);
-        System.out.println(fooChannel.getPeers().size());
-        if (fooChannel.getPeers().size() < 10) {
-            for (int i = 0; i < 10; i++) {
-                try {
-                    peerJoinChannel(hfClient, fooChannel, "peer" + i + ".org2.example.com");
-                } catch (ProposalException e) {
-                    out("peer" + i + ".org2.example.com has joined channel");
-                }
-            }
-        }
-        System.out.print(fooChannel.getPeers());
+//        admin = EnrollAdmin.admins.get("Org2");
+//        hfClient.setUserContext(admin);
+//        System.out.println(fooChannel.getPeers().size());
+//        for (int i = 0; i < 10; i++) {
+//            try {
+//                peerJoinChannel(hfClient, fooChannel, "peer" + i + ".org2.example.com");
+//            } catch (ProposalException e) {
+//                out("peer" + i + ".org2.example.com has joined channel");
+//                Properties peerProperties = getEndPointProperties("peer", "peer"+i+"."+"org2.example.com");
+//                peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
+//                Peer peer = hfClient.newPeer("peer"+i+"."+"org2.example.com", getGRPCUrl("peer", "peer"+i+"."+"org2.example.com"), peerProperties);
+//                fooChannel.addPeer(peer);
+//            }
+//        }
+//        System.out.print(fooChannel.getPeers());
 
         admin = EnrollAdmin.admins.get("Org1");
         hfClient.setUserContext(admin);

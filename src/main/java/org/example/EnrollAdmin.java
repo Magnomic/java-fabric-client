@@ -30,10 +30,12 @@ public class EnrollAdmin {
 	public static String CERTIFICATE_ORG1 = "../../first-network/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/signcerts/Admin@org1.example.com-cert.pem";
 	public static String CERTIFICATE_ORG2 = "../../first-network/crypto-config/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp/signcerts/Admin@org2.example.com-cert.pem";
 	public static String CERTIFICATE_ORG3 = "../../first-network/crypto-config/peerOrganizations/org3.example.com/users/Admin@org3.example.com/msp/signcerts/Admin@org3.example.com-cert.pem";
-	public static String PRIVATE_KEY_ORG1 = "../../first-network/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/keystore/11f8f1c317d3322b229011847f15520932398326233d6f14d0aac04418e11aca_sk";
-	public static String PRIVATE_KEY_ORG2 = "../../first-network/crypto-config/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp/keystore/99857fd10090f19f53870d094ea9098595f626dc57fd7476f25b423ed0080ef1_sk";
-	public static String PRIVATE_KEY_ORG3 = "../../first-network/crypto-config/peerOrganizations/org3.example.com/users/Admin@org3.example.com/msp/keystore/ded8f8fb0b93d1f8d462c0336b4be5a2e76fb844d56da1bfbe037ff2f1c14a60_sk";
-
+//	public static String PRIVATE_KEY_ORG1 = "../../first-network/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/keystore/11f8f1c317d3322b229011847f15520932398326233d6f14d0aac04418e11aca_sk";
+//	public static String PRIVATE_KEY_ORG2 = "../../first-network/crypto-config/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp/keystore/99857fd10090f19f53870d094ea9098595f626dc57fd7476f25b423ed0080ef1_sk";
+//	public static String PRIVATE_KEY_ORG3 = "../../first-network/crypto-config/peerOrganizations/org3.example.com/users/Admin@org3.example.com/msp/keystore/ded8f8fb0b93d1f8d462c0336b4be5a2e76fb844d56da1bfbe037ff2f1c14a60_sk";
+	public static String PRIVATE_KEY_ORG1 = "../../first-network/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/keystore/priv_sk";
+	public static String PRIVATE_KEY_ORG2 = "../../first-network/crypto-config/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp/keystore/priv_sk";
+	public static String PRIVATE_KEY_ORG3 = "../../first-network/crypto-config/peerOrganizations/org3.example.com/users/Admin@org3.example.com/msp/keystore/priv_sk";
 	static void createAdmin(String certificate, String privateKey, String org) throws IOException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeySpecException {
 
 		String cert = new String(IOUtils.toByteArray(new FileInputStream(Paths.get(certificate).toFile())), "UTF-8");
