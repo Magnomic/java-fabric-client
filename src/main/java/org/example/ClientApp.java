@@ -22,36 +22,31 @@ import org.hyperledger.fabric.sdk.exception.TransactionException;
 
 public class ClientApp{
 
-	User admin;
-
-	public ClientApp(User admin) {
-		this.admin = admin;
-	}
 
 	public void out(Object obj){
 		System.out.println(obj);
 	}
 
-	public void run(String org) throws InterruptedException, IOException, InvalidArgumentException, NoSuchMethodException, TransactionException, InstantiationException, CryptoException, IllegalAccessException, InvocationTargetException, ClassNotFoundException, ProposalException {
+	public void run(String org) throws Exception {
 
-		Long time = System.currentTimeMillis();
-		out(System.currentTimeMillis()-time);
-			// Load a file system based wallet for managing identities.
-		Path walletPath = Paths.get("wallet-"+org);
-		Wallet wallet = null;
-		try {
-			wallet = Wallet.createFileSystemWallet(walletPath);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+//		Long time = System.currentTimeMillis();
+//		out(System.currentTimeMillis()-time);
+//			// Load a file system based wallet for managing identities.
+//		Path walletPath = Paths.get("wallet-"+org);
+//		Wallet wallet = null;
+//		try {
+//			wallet = Wallet.createFileSystemWallet(walletPath);
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//
+//		out(System.currentTimeMillis()-time);
+//		// load a CCP
+//		Path networkConfigPath = Paths.get("..", "..", "first-network", "my-connection.yaml");
+//
+//		Gateway.Builder builder = Gateway.createBuilder();
 
-		out(System.currentTimeMillis()-time);
-		// load a CCP
-		Path networkConfigPath = Paths.get("..", "..", "first-network", "my-connection.yaml");
-
-		Gateway.Builder builder = Gateway.createBuilder();
-
-		CreateChannel createChannel = new CreateChannel(admin);
+		CreateChannel createChannel = new CreateChannel();
 		createChannel.createChannel();
 
 //		try {
