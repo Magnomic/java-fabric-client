@@ -26,9 +26,9 @@ public class CommitThread extends Thread {
         try (Gateway gateway = builder.connect()) {
 
             // get the network and contract
-            Network network = gateway.getNetwork("mychannel");
+            Network network = gateway.getNetwork("foochannel");
 
-            Contract contract = network.getContract("mycc");
+            Contract contract = network.getContract("barchaincode");
             byte[] result;
             List<Peer> peerList = new ArrayList<>(network.getChannel().getPeers());
             List<Peer> endorsers = new ArrayList<>();
@@ -36,6 +36,7 @@ public class CommitThread extends Thread {
             for (Peer peer : peerList){
                 if (peer.getName().contains("org1")) {
                     endorsers.add(peer);
+                    System.out.println(peer.getUrl());
                     break;
                 }
             }
@@ -45,10 +46,11 @@ public class CommitThread extends Thread {
                     break;
                 }
             }
-
-            Transaction transaction = contract.createTransaction("addRecord");
-            transaction.setEndorsingPeers(endorsers);
-            transaction.submit("test1538" + message);
+            contract.submitTransaction("create", "test1538", "666");
+//
+//            Transaction transaction = contract.createTransaction("create");
+//            transaction.setEndorsingPeers(endorsers);
+//            transaction.submit("test1538" + message);
 
             gateway.close();
             System.out.println("success");

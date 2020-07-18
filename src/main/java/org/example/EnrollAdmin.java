@@ -21,8 +21,16 @@ import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.hyperledger.fabric.gateway.Identities;
+import org.hyperledger.fabric.gateway.Identity;
+import org.hyperledger.fabric.gateway.Wallet;
+import org.hyperledger.fabric.gateway.Wallets;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
+import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory;
+import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
+import org.hyperledger.fabric_ca.sdk.HFCAClient;
 
 public class EnrollAdmin {
 
@@ -40,7 +48,7 @@ public class EnrollAdmin {
 
 		String cert = new String(IOUtils.toByteArray(new FileInputStream(Paths.get(certificate).toFile())), "UTF-8");
 		PrivateKey pk = getPrivateKeyFromBytes(IOUtils.toByteArray(new FileInputStream(Paths.get(privateKey).toFile())));
-
+		System.out.println(cert);
 		admins.put(org, new User() {
 			@Override
 			public String getName() {
@@ -101,37 +109,37 @@ public class EnrollAdmin {
 		createAdmin(CERTIFICATE_ORG1, PRIVATE_KEY_ORG1, "Org1");
 		createAdmin(CERTIFICATE_ORG2, PRIVATE_KEY_ORG2, "Org2");
 		createAdmin(CERTIFICATE_ORG3, PRIVATE_KEY_ORG3, "Org3");
-//		// Create a CA client for interacting with the CA.
-//		Properties props = new Properties();
-//		props.put("pemFile",
-//			"/resources/peerOrganizations/org3.example.com/ca/ca.org3.example.com-cert.pem");
-//		props.put("allowAllHostNames", "true");
-//		HFCAClient caClient = HFCAClient.createNewInstance("https://localhost:19003", props);
-//		CryptoSuite cryptoSuite = CryptoSuiteFactory.getDefault().getCryptoSuite();
-//		caClient.setCryptoSuite(cryptoSuite);
-//
-//		// Create a wallet for managing identities
-//		Wallet wallet = Wallet.createFileSystemWallet(Paths.get("wallet"));
-//
-//		// Check to see if we've already enrolled the admin user.
-//		boolean adminExists = wallet.exists("admin");
-//        if (adminExists) {
-//            System.out.println("An identity for the admin user \"admin\" already exists in the wallet");
-//            return;
-//        }
-//
-//        // Enroll the admin user, and import the new identity into the wallet.
-//        final EnrollmentRequest enrollmentRequestTLS = new EnrollmentRequest();
-//        enrollmentRequestTLS.addHost("localhost");
-//        enrollmentRequestTLS.setProfile("tls");
-//        Enrollment enrollment = caClient.enroll("admin", "adminpw", enrollmentRequestTLS);
-//        Identity user = Identity.createIdentity("Org3MSP", enrollment.getCert(), enrollment.getKey());
-//        wallet.put("admin", user);
-//		System.out.println("Successfully enrolled user \"admin\" and imported it into the wallet");
-//
-//		final EnrollmentRequest enrollmentRequestTLS1 = new EnrollmentRequest();
-//		enrollmentRequestTLS.addHost("localhost");
-//		enrollmentRequestTLS.setProfile("tls");
+		// Create a CA client for interacting with the CA.
+		Properties props = new Properties();
+		props.put("pemFile",
+			"../../first-network/crypto-config/peerOrganizations/org1.example.com/ca/ca.org1.example.com-cert.pem");
+		props.put("allowAllHostNames", "true");
+		HFCAClient caClient = HFCAClient.createNewInstance("https://localhost:19001", props);
+		CryptoSuite cryptoSuite = CryptoSuiteFactory.getDefault().getCryptoSuite();
+		caClient.setCryptoSuite(cryptoSuite);
+
+		// Create a wallet for managing identities
+		Wallet wallet = Wallets.newFileSystemWallet(Paths.get("wallet"));
+
+		// Check to see if we've already enrolled the admin user.
+		boolean adminExists = wallet.get("admin") != null;
+        if (adminExists) {
+            System.out.println("An identity for the admin user \"admin\" already exists in the wallet");
+            return;
+        }
+
+        // Enroll the admin user, and import the new identity into the wallet.
+        final EnrollmentRequest enrollmentRequestTLS = new EnrollmentRequest();
+        enrollmentRequestTLS.addHost("localhost");
+        enrollmentRequestTLS.setProfile("tls");
+        Enrollment enrollment = caClient.enroll("admin", "adminpw", enrollmentRequestTLS);
+        Identity user = Identities.newX509Identity("Org1MSP", enrollment);
+        wallet.put("admin", user);
+		System.out.println("Successfully enrolled user \"admin\" and imported it into the wallet");
+
+		final EnrollmentRequest enrollmentRequestTLS1 = new EnrollmentRequest();
+		enrollmentRequestTLS.addHost("localhost");
+		enrollmentRequestTLS.setProfile("tls");
 
 	}
 }

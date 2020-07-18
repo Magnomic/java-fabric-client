@@ -29,36 +29,36 @@ public class ClientApp{
 
 	public void run(String org) throws Exception {
 
-//		Long time = System.currentTimeMillis();
-//		out(System.currentTimeMillis()-time);
-//			// Load a file system based wallet for managing identities.
-//		Path walletPath = Paths.get("wallet-"+org);
-//		Wallet wallet = null;
-//		try {
-//			wallet = Wallet.createFileSystemWallet(walletPath);
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//
-//		out(System.currentTimeMillis()-time);
-//		// load a CCP
-//		Path networkConfigPath = Paths.get("..", "..", "first-network", "my-connection.yaml");
-//
-//		Gateway.Builder builder = Gateway.createBuilder();
+		Long time = System.currentTimeMillis();
+		out(System.currentTimeMillis()-time);
+			// Load a file system based wallet for managing identities.
+		Path walletPath = Paths.get("wallet");
+		Wallet wallet = null;
+		try {
+			wallet = Wallets.newFileSystemWallet(walletPath);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
-		CreateChannel createChannel = new CreateChannel();
-		createChannel.createChannel();
+		out(System.currentTimeMillis()-time);
+		// load a CCP
+		Path networkConfigPath = Paths.get("..", "..", "first-network", "my-connection.yaml");
 
-//		try {
-//			builder.identity(wallet, "user1").networkConfig(networkConfigPath).discovery(true);
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//		for (int i=0;i<100;i++) {
-//			Thread.sleep(1);
-//			CommitThread commitThread = new CommitThread(builder, Long.toString(System.currentTimeMillis()));
-//			commitThread.start();
-//		}
-//		Thread.sleep(2000*1000L);
+		Gateway.Builder builder = Gateway.createBuilder();
+
+//		CreateChannel createChannel = new CreateChannel();
+//		createChannel.createChannel();
+
+		try {
+			builder.identity(wallet, "user1").networkConfig(networkConfigPath).discovery(true);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		for (int i=0;i<1;i++) {
+			Thread.sleep(1);
+			CommitThread commitThread = new CommitThread(builder, Long.toString(System.currentTimeMillis()));
+			commitThread.start();
+		}
+		Thread.sleep(2000*1000L);
 	}
 }

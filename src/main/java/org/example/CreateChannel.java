@@ -1,5 +1,6 @@
 package org.example;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.hyperledger.fabric.gateway.Contract;
 import org.hyperledger.fabric.gateway.Gateway;
 import org.hyperledger.fabric.gateway.Network;
@@ -233,6 +234,7 @@ public class CreateChannel {
 
         TransactionProposalRequest transactionProposalRequest = client.newTransactionProposalRequest();
         transactionProposalRequest.setChaincodeName(chaincodeName);
+//        transactionProposalRequest.setChaincodeVersion("1.1");
         transactionProposalRequest.setChaincodeLanguage(chaincodeType);
         transactionProposalRequest.setUserContext(userContext);
 
@@ -240,6 +242,7 @@ public class CreateChannel {
         transactionProposalRequest.setProposalWaitTime(120000L);
         transactionProposalRequest.setArgs(args);
         if (null != doInit) {
+            out("I did init!");
             transactionProposalRequest.setInit(doInit);
         }
 
@@ -247,6 +250,7 @@ public class CreateChannel {
         Collection<ProposalResponse> transactionPropResp = channel.sendTransactionProposal(transactionProposalRequest, channel.getPeers());
         for (ProposalResponse response : transactionPropResp) {
             if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
+                out(response.getMessage());
                 out("Successful transaction proposal response Txid: %s from peer %s", response.getTransactionID(), response.getPeer().getName());
                 successful.add(response);
             } else {
@@ -352,6 +356,76 @@ public class CreateChannel {
     }
 
 
+    private String lifecycleInstallChaincode(HFClient client, Collection<Peer> peers, LifecycleChaincodePackage lifecycleChaincodePackage) throws InvalidArgumentException, ProposalException, InvalidProtocolBufferException {
+
+        int numInstallProposal = 0;
+
+        numInstallProposal = numInstallProposal + peers.size();
+
+        LifecycleInstallChaincodeRequest installProposalRequest = client.newLifecycleInstallChaincodeRequest();
+        installProposalRequest.setLifecycleChaincodePackage(lifecycleChaincodePackage);
+        installProposalRequest.setProposalWaitTime(1200000L);
+
+        Collection<LifecycleInstallChaincodeProposalResponse> responses = client.sendLifecycleInstallChaincodeRequest(installProposalRequest, peers);
+        assertNotNull(responses);
+
+        Collection<ProposalResponse> successful = new LinkedList<>();
+        Collection<ProposalResponse> failed = new LinkedList<>();
+        String packageID = null;
+        for (LifecycleInstallChaincodeProposalResponse response : responses) {
+            if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
+                out("Successful install proposal response Txid: %s from peer %s", response.getTransactionID(), response.getPeer().getName());
+                successful.add(response);
+                if (packageID == null) {
+                    packageID = response.getPackageId();
+                    assertNotNull(format("Hashcode came back as null from peer: %s ", response.getPeer()), packageID);
+                } else {
+                    assertEquals("Miss match on what the peers returned back as the packageID", packageID, response.getPackageId());
+                }
+            } else {
+                failed.add(response);
+            }
+        }
+
+        //   }
+        out("Received %d install proposal responses. Successful+verified: %d . Failed: %d", numInstallProposal, successful.size(), failed.size());
+
+        if (failed.size() > 0) {
+            ProposalResponse first = failed.iterator().next();
+            fail("Not enough endorsers for install :" + successful.size() + ".  " + first.getMessage());
+        }
+
+        assertNotNull(packageID);
+        assertFalse(packageID.isEmpty());
+
+        return packageID;
+
+    }
+
+
+    void executeVerifyByQuery(HFClient client, Channel channel, String chaincodeName, String key) throws ProposalException, InvalidArgumentException {
+        out("Now query chaincode for the value of b.");
+        QueryByChaincodeRequest queryByChaincodeRequest = client.newQueryProposalRequest();
+        queryByChaincodeRequest.setArgs(key);
+        queryByChaincodeRequest.setFcn("query");
+        queryByChaincodeRequest.setChaincodeName(chaincodeName);
+//        queryByChaincodeRequest.setChaincodeVersion("1.1");
+
+        Collection<ProposalResponse> queryProposals = channel.queryByChaincode(queryByChaincodeRequest, channel.getPeers());
+        for (ProposalResponse proposalResponse : queryProposals) {
+            if (!proposalResponse.isVerified() || proposalResponse.getStatus() != ProposalResponse.Status.SUCCESS) {
+                fail("Failed query proposal from peer " + proposalResponse.getPeer().getName() + " status: " + proposalResponse.getStatus() +
+                        ". Messages: " + proposalResponse.getMessage()
+                        + ". Was verified : " + proposalResponse.isVerified());
+            } else {
+                String payload = proposalResponse.getProposalResponse().getResponse().getPayload().toStringUtf8();
+                out("Query payload of b from peer %s returned %s", proposalResponse.getPeer().getName(), payload);
+//                assertEquals(expect, payload);
+            }
+        }
+
+    }
+
     private CompletableFuture<BlockEvent.TransactionEvent> commitChaincodeDefinitionRequest(HFClient client, Channel channel, long definitionSequence, String chaincodeName, String chaincodeVersion,
                                                                                             LifecycleChaincodeEndorsementPolicy chaincodeEndorsementPolicy,
                                                                                             ChaincodeCollectionConfiguration chaincodeCollectionConfiguration,
@@ -375,6 +449,7 @@ public class CreateChannel {
         for (LifecycleCommitChaincodeDefinitionProposalResponse resp : lifecycleCommitChaincodeDefinitionProposalResponses) {
 
             final Peer peer = resp.getPeer();
+            out(resp.getMessage());
             assertEquals(format("%s had unexpected status.", peer.toString()), ChaincodeResponse.Status.SUCCESS, resp.getStatus());
             assertTrue(format("%s not verified.", peer.toString()), resp.isVerified());
         }
@@ -383,10 +458,15 @@ public class CreateChannel {
 
     }
 
-    public void chaincodeCreate(HFClient hfClient, Channel channel, String chaincodeName, String chaincodeVersion,
-                                Collection<Peer> peerOrg1, Collection<Peer> peerOrg2) throws IOException, InvalidArgumentException, ChaincodeEndorsementPolicyParseException, ProposalException, InterruptedException, ExecutionException, TimeoutException, ChaincodeCollectionConfigurationException {
-        Collection<Peer> peers = channel.getPeers();
+    public void chaincodeCreate(HFClient hfClient, Channel channel, Channel org2channel, String chaincodeName, String chaincodeVersion,
+                                Collection<Peer> peerOrg1, Collection<Peer> peerOrg2, Collection<Peer> otherPeerFromOrg2) throws IOException, InvalidArgumentException, ChaincodeEndorsementPolicyParseException, ProposalException, InterruptedException, ExecutionException, TimeoutException, ChaincodeCollectionConfigurationException, IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException, CryptoException, ClassNotFoundException {
+        System.out.println(peerOrg1);
+        System.out.println(peerOrg2);
 
+        System.out.println("----------------");
+
+        System.out.println(channel.getPeers());
+        System.out.println(org2channel.getPeers());
 //        verifyNoInstalledChaincodes(hfClient, peers);
 
 //        Thread.sleep(100000L);
@@ -439,7 +519,7 @@ public class CreateChannel {
         queryLifecycleQueryChaincodeDefinitionRequest.setChaincodeName(chaincodeName);
 
         long sequence = -1L;
-        Collection<LifecycleQueryChaincodeDefinitionProposalResponse> firstQueryDefininitions = channel.lifecycleQueryChaincodeDefinition(queryLifecycleQueryChaincodeDefinitionRequest, peers);
+        Collection<LifecycleQueryChaincodeDefinitionProposalResponse> firstQueryDefininitions = channel.lifecycleQueryChaincodeDefinition(queryLifecycleQueryChaincodeDefinitionRequest, peerOrg1);
         for (LifecycleQueryChaincodeDefinitionProposalResponse firstDefinition : firstQueryDefininitions) {
             if (firstDefinition.getStatus() == ProposalResponse.Status.SUCCESS) {
                 sequence = firstDefinition.getSequence() + 1L; //Need to bump it up to the next.
@@ -456,35 +536,70 @@ public class CreateChannel {
         Peer anPeer = peerOrg1.iterator().next();
         out(anPeer.getName());
         BlockEvent.TransactionEvent transactionEvent = lifecycleApproveChaincodeDefinitionForMyOrg(hfClient, channel,
-                peerOrg1,  //support approve on multiple peers but really today only need one. Go with minimum.
+                    Collections.singleton(anPeer),  //support approve on multiple peers but really today only need one. Go with minimum.
                     sequence, chaincodeName, chaincodeVersion, chaincodeEndorsementPolicy, null, true, packageID)
                     .get(100, TimeUnit.SECONDS);
 
         assertTrue(transactionEvent.isValid());
 
-        verifyByCheckCommitReadinessStatus(hfClient, channel, sequence, chaincodeName, chaincodeVersion,
-                chaincodeEndorsementPolicy, null, true, peers,
-                new HashSet<>(Arrays.asList("Org1MSP")), // Approved
-                new HashSet<>(Arrays.asList("Org2MSP"))); // Un approved.
+//        verifyByCheckCommitReadinessStatus(hfClient, channel, sequence, chaincodeName, chaincodeVersion,
+//                chaincodeEndorsementPolicy, null, true, peerOrg1,
+//                new HashSet<>(Arrays.asList("Org1MSP")), // Approved
+//                new HashSet<>(Arrays.asList("Org2MSP"))); // Un approved.
 
         //Serialize these to bytes to give to other organizations.
         byte[] chaincodePackageBtyes = lifecycleChaincodePackage.getAsBytes();
         final byte[] chaincodeEndorsementPolicyAsBytes = chaincodeEndorsementPolicy == null ? null : chaincodeEndorsementPolicy.getSerializedPolicyBytes();
 
-        transactionEvent = commitChaincodeDefinitionRequest(hfClient, channel, sequence, chaincodeName, chaincodeVersion,
-                chaincodeEndorsementPolicy, null, true, peers)
+        ////  Now as org2
+        LifecycleChaincodePackage org2LifecycleChaincodePackage = LifecycleChaincodePackage.fromBytes(chaincodePackageBtyes);
+        LifecycleChaincodeEndorsementPolicy org2ChaincodeEndorsementPolicy = chaincodeEndorsementPolicyAsBytes == null ? null :
+                LifecycleChaincodeEndorsementPolicy.fromBytes(chaincodeEndorsementPolicyAsBytes);
+
+
+        HFClient org2Client = HFClient.createNewInstance();
+        org2Client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
+        org2Client.setUserContext(EnrollAdmin.admins.get("Org2"));
+
+        //Org2 installs the chaincode on its peers
+        out("Org2 installs the chaincode on its peers.");
+        String org2ChaincodePackageID = lifecycleInstallChaincode(org2Client, peerOrg2, org2LifecycleChaincodePackage);
+
+        BlockEvent.TransactionEvent org2TransactionEvent = lifecycleApproveChaincodeDefinitionForMyOrg(org2Client, org2channel,
+                Collections.singleton(peerOrg2.iterator().next()),  //support approve on multiple peers but really today only need one. Go with minimum.
+                sequence, chaincodeName, chaincodeVersion, org2ChaincodeEndorsementPolicy, null, true, org2ChaincodePackageID)
+                .get(100, TimeUnit.SECONDS);
+
+        Collection<Peer> endorsingPeers = Arrays.asList(peerOrg2.iterator().next(), otherPeerFromOrg2.iterator().next());
+        for (Peer p : endorsingPeers){
+            out(p.getName());
+        }
+
+        transactionEvent = commitChaincodeDefinitionRequest(org2Client, org2channel, sequence, chaincodeName, chaincodeVersion,
+                org2ChaincodeEndorsementPolicy, null, true, endorsingPeers)
                 .get(100, TimeUnit.SECONDS);
 
         assertTrue(transactionEvent.isValid());
 
-        verifyByQueryChaincodeDefinition(hfClient, channel, chaincodeName, peers, sequence, true,
+        verifyByQueryChaincodeDefinition(hfClient, channel, chaincodeName, peerOrg1, sequence, true,
                 chaincodeEndorsementPolicyAsBytes, null);
 
         transactionEvent = executeChaincode(hfClient, EnrollAdmin.admins.get("Org1"), channel, "init",
                 true, // doInit don't even specify it has it should default to false
                 chaincodeName, TransactionRequest.Type.GO_LANG, "a,", "100", "b", "300").get(100, TimeUnit.SECONDS);
         assertTrue(transactionEvent.isValid());
+        executeVerifyByQuery(hfClient, channel, chaincodeName,"b");
+        transactionEvent = executeChaincode(hfClient, EnrollAdmin.admins.get("Org1"), channel, "move",
+                false, // doInit
+                chaincodeName, TransactionRequest.Type.GO_LANG, "a,", "b", "10").get(100, TimeUnit.SECONDS);
 
+        assertTrue(transactionEvent.isValid());
+        executeVerifyByQuery(hfClient, channel, chaincodeName,"b");
+        transactionEvent = executeChaincode(hfClient, EnrollAdmin.admins.get("Org1"), channel, "create",
+                false, // doInit
+                chaincodeName, TransactionRequest.Type.GO_LANG, "c", "8888").get(100, TimeUnit.SECONDS);
+        assertTrue(transactionEvent.isValid());
+        executeVerifyByQuery(hfClient, channel, chaincodeName,"c");
     }
 
     public void addAnchorPeer(Channel channel, User admin, HFClient hfClient, String orgSeq) throws Exception {
@@ -509,6 +624,7 @@ public class CreateChannel {
         User admin = EnrollAdmin.admins.get("Org1");
         hfClient.setUserContext(admin);
         Channel fooChannel;
+        Channel org2fooChannel;
         try {
             fooChannel = createChannel("foochannel", hfClient, admin, "org1.example.com");
         } catch (TransactionException e){
@@ -529,34 +645,49 @@ public class CreateChannel {
                 Peer peer = hfClient.newPeer("peer"+i+"."+"org1.example.com", getGRPCUrl("peer", "peer"+i+"."+"org1.example.com"), peerProperties);
                 fooChannel.addPeer(peer);
                 peerOrg1.add(peer);
+                peerProperties = getEndPointProperties("peer", "peer"+i+"."+"org2.example.com");
+                peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
+                peer = hfClient.newPeer("peer"+i+"."+"org2.example.com", getGRPCUrl("peer", "peer"+i+"."+"org2.example.com"), peerProperties);
+                fooChannel.addPeer(peer);
             }
         }
 //
         addAnchorPeer(fooChannel, admin, hfClient,"1");
-
-        Collection<Peer> peerOrg2 = new LinkedList<>();
+//
+        HFClient hfClientOrg2 = HFClient.createNewInstance();
         admin = EnrollAdmin.admins.get("Org2");
-        hfClient.setUserContext(admin);
-        System.out.println(fooChannel.getPeers().size());
+        hfClientOrg2.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
+        hfClientOrg2.setUserContext(admin);
+        Collection<Peer> peerOrg2 = new LinkedList<>();
+        Collection<Peer> otherPeerFromOrg2 = new LinkedList<>();
+        try {
+            org2fooChannel = createChannel("foochannel", hfClientOrg2, admin, "org2.example.com");
+        } catch (TransactionException | InvalidArgumentException e){
+            // channel has been set up
+            out("channel has been set up");
+            org2fooChannel = getChannel(hfClientOrg2, "foochannel", "org2.example.com");
+        }
+        System.out.println(org2fooChannel.getPeers().size());
         for (int i = 0; i < 10; i++) {
             try {
-                peerJoinChannel(hfClient, fooChannel, peerOrg2, "peer" + i + ".org2.example.com");
+                peerJoinChannel(hfClientOrg2, org2fooChannel, peerOrg2, "peer" + i + ".org2.example.com");
             } catch (ProposalException e) {
                 out("peer" + i + ".org2.example.com has joined channel");
                 Properties peerProperties = getEndPointProperties("peer", "peer"+i+"."+"org2.example.com");
                 peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
-                Peer peer = hfClient.newPeer("peer"+i+"."+"org2.example.com", getGRPCUrl("peer", "peer"+i+"."+"org2.example.com"), peerProperties);
-                fooChannel.addPeer(peer);
+                Peer peer = hfClientOrg2.newPeer("peer"+i+"."+"org2.example.com", getGRPCUrl("peer", "peer"+i+"."+"org2.example.com"), peerProperties);
+                org2fooChannel.addPeer(peer);
                 peerOrg2.add(peer);
+                peerProperties = getEndPointProperties("peer", "peer"+i+"."+"org1.example.com");
+                peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
+                peer = hfClientOrg2.newPeer("peer"+i+"."+"org1.example.com", getGRPCUrl("peer", "peer"+i+"."+"org1.example.com"), peerProperties);
+                org2fooChannel.addPeer(peer);
+                otherPeerFromOrg2.add(peer);
             }
         }
-        addAnchorPeer(fooChannel, admin, hfClient,"2");
+        addAnchorPeer(org2fooChannel, admin, hfClientOrg2,"2");
 
-        System.out.print(fooChannel.getPeers());
-
-        admin = EnrollAdmin.admins.get("Org1");
-        hfClient.setUserContext(admin);
-        chaincodeCreate(hfClient, fooChannel,"foochaincode", "1.0",peerOrg1,peerOrg2);
+        chaincodeCreate(hfClient, fooChannel, org2fooChannel,"barchaincode", "1.3",peerOrg1,peerOrg2,otherPeerFromOrg2);
 
 //        admin = EnrollAdmin.admins.get("Org2");
 //        hfClient.setUserContext(admin);
