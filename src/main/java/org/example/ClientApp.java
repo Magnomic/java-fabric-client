@@ -54,7 +54,7 @@ public class ClientApp{
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		for (int i=0;i<1;i++) {
+		for (int i=0;i<1000;i++) {
 			Thread.sleep(1);
 			CommitThread commitThread = new CommitThread(builder, Long.toString(System.currentTimeMillis()));
 			commitThread.start();

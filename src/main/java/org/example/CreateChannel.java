@@ -652,7 +652,7 @@ public class CreateChannel {
             }
         }
 //
-        addAnchorPeer(fooChannel, admin, hfClient,"1");
+//        addAnchorPeer(fooChannel, admin, hfClient,"1");
 //
         HFClient hfClientOrg2 = HFClient.createNewInstance();
         admin = EnrollAdmin.admins.get("Org2");
@@ -671,6 +671,11 @@ public class CreateChannel {
         for (int i = 0; i < 10; i++) {
             try {
                 peerJoinChannel(hfClientOrg2, org2fooChannel, peerOrg2, "peer" + i + ".org2.example.com");
+                Properties peerProperties = getEndPointProperties("peer", "peer"+i+"."+"org1.example.com");
+                peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
+                Peer peer = hfClientOrg2.newPeer("peer"+i+"."+"org1.example.com", getGRPCUrl("peer", "peer"+i+"."+"org1.example.com"), peerProperties);
+                org2fooChannel.addPeer(peer);
+                otherPeerFromOrg2.add(peer);
             } catch (ProposalException e) {
                 out("peer" + i + ".org2.example.com has joined channel");
                 Properties peerProperties = getEndPointProperties("peer", "peer"+i+"."+"org2.example.com");
@@ -685,9 +690,9 @@ public class CreateChannel {
                 otherPeerFromOrg2.add(peer);
             }
         }
-        addAnchorPeer(org2fooChannel, admin, hfClientOrg2,"2");
+//        addAnchorPeer(org2fooChannel, admin, hfClientOrg2,"2");
 
-        chaincodeCreate(hfClient, fooChannel, org2fooChannel,"barchaincode", "1.3",peerOrg1,peerOrg2,otherPeerFromOrg2);
+        chaincodeCreate(hfClient, fooChannel, org2fooChannel,"barchaincode", "1.4",peerOrg1,peerOrg2,otherPeerFromOrg2);
 
 //        admin = EnrollAdmin.admins.get("Org2");
 //        hfClient.setUserContext(admin);

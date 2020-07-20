@@ -31,6 +31,7 @@ public class CommitThread extends Thread {
             Contract contract = network.getContract("barchaincode");
             byte[] result;
             List<Peer> peerList = new ArrayList<>(network.getChannel().getPeers());
+            System.out.println(peerList);
             List<Peer> endorsers = new ArrayList<>();
             Collections.shuffle(peerList);
             for (Peer peer : peerList){
@@ -46,11 +47,11 @@ public class CommitThread extends Thread {
                     break;
                 }
             }
-            contract.submitTransaction("create", "test1538", "666");
+//            contract.submitTransaction("create", "test1538", "666");
 //
-//            Transaction transaction = contract.createTransaction("create");
-//            transaction.setEndorsingPeers(endorsers);
-//            transaction.submit("test1538" + message);
+            Transaction transaction = contract.createTransaction("create");
+            transaction.setEndorsingPeers(endorsers);
+            transaction.submit("test1538" + message, "666");
 
             gateway.close();
             System.out.println("success");
